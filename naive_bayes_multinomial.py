@@ -19,10 +19,11 @@ class NaiveBayesMultinomial:
         total de documentos da base de treinamento
 
     _V: conjunto
-        vocabulário - conjunto contendo todas as palavras da BD de treinamento 
+        vocabulário - conjunto contendo todas as palavras (na verdade, tokens) 
+        da BD de treinamento 
         
-    _d: int
-        tamanho do vocabulário    
+    _m: int
+        tamanho do vocabulário (total de tokens distintos)    
 
     _q: int
         número de classes
@@ -63,7 +64,7 @@ class NaiveBayesMultinomial:
         """
         self._n = 0 
         self._V = set()
-        self._d = 0
+        self._m = 0
         self._q = 0
         self._simbolos = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'
         self._bow = []
@@ -176,7 +177,7 @@ class NaiveBayesMultinomial:
                 
             # (4) gera os atributos _n, _d, _classes e _q
             self._n = len(self._bow)
-            self._d = len(self._V)
+            self._m = len(self._V)
             self._classes = list(set(self._Y))
             self._classes.sort() # apenas para ordenar alfabeticamente
             self._q = len(self._classes)
@@ -244,7 +245,7 @@ class NaiveBayesMultinomial:
         Parâmetros:
         -----------
         d: string
-            texto a ser classificado pelo modelo treinado
+            documento (texto) a ser classificado pelo modelo treinado
             
         retornar_probs: bool, default = False
             indica se, além da classe predita, método deve retornar as 
@@ -279,13 +280,12 @@ class NaiveBayesMultinomial:
             #         P(f1|c) x P(f2|c) x ... P(fn|c)
             for token in tokens:
                 prob_cond = ((self._freqs_tokens[c][token] + 1) / 
-                            (self._tot_tokens_classes[c] + self._d))
+                            (self._tot_tokens_classes[c] + self._m))
             
                 probs[c] *= prob_cond
                 
             # se prob P(c|d) é a maior que a anteriormente registrada, 
             # atualiza a classe predita
-            
             if probs[c] > maior_prob:
                 classe_predita = c
                 maior_prob = probs[c]
@@ -297,9 +297,35 @@ class NaiveBayesMultinomial:
                     {"probabilidades": probs})
         
 
+    def head(self, k = 5):
+        """ retorna as k primeiras observações de treino,
+            onde cada observação é um par (classe, BoW) """
+        
+        # ajusta o valor de k, caso seja maior do que o total de observações da base
+        if k > self._n: k = self._n
+        return [(self._Y[i], self._bow[i]) for i in range(k)]
+            
 
-# código de teste
-if __name__ == '__main__':
+    def tail(self, k = 5):
+        """ retorna as k últimas observações de treino,
+            onde cada observação é um par (classe, BoW) """
+        
+        # ajusta o valor de k, caso seja maior do que o total de observações da base
+        if k > self._n: k = self._n
+        return [(self._Y[i], self._bow[i]) for i in range(self._n - k, self._n)]
+       
+
+"""
+código de teste
+
+Obs.: para bases de dados mais volumosas, execute esse código fora do thonny,
+      ou seja, diretamente no python. Para quem tem o python instalado em 
+      casa, basta abrir o prompt do comando, ir até a pasta em que está
+      o programa e as bases de dados e digitar:
+       
+      python naive_bayes_multinomial.py
+"""
+if __name__ == '__main__':    
     
     # instancia um objeto da classe NaiveBayesMultinomial
     modelo = NaiveBayesMultinomial()
@@ -307,7 +333,16 @@ if __name__ == '__main__':
     # importa um dataset para a memória (gera BoW e Y)
     nome_dataset = "review_filmes.csv"
     modelo.importar(nome_dataset, pos_classe = 1, pos_texto = 0)
+
+    #nome_dataset = "sentiment140.csv" # BD de análise de sentimentos
+    #modelo.importar(nome_dataset, pos_classe = 0, pos_texto = 1)
     
+    #nome_dataset = "documents.csv" # BD de fake news em português
+    #modelo.importar(nome_dataset, pos_classe = 0, pos_texto = 2)
+    
+    #print(modelo.head())
+    #print(modelo.tail())
+
     print('vocabulário: ', modelo._V, ' ------ tamanho:', len(modelo._V))
     print('-' * 60)
     print("-> BoW: ", modelo._bow)
@@ -324,7 +359,8 @@ if __name__ == '__main__':
     
     # classifica um novo texto
     d = "predictable with no fun"
+    #d = "sad news about geopolitics" # para testar o BD de análise de sentimentos
+    #d = "Em Londres, uma formiga tomou cloroquina e virou um dinossauro" # para testar o BD de fake news    
     classe_predita = modelo.classificar(d, retornar_probs = True)
     print('-> novo texto:', d)
     print('-> classe predita ->', classe_predita)
-    
