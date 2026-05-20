@@ -313,7 +313,42 @@ class NaiveBayesMultinomial:
         # ajusta o valor de k, caso seja maior do que o total de observações da base
         if k > self._n: k = self._n
         return [(self._Y[i], self._bow[i]) for i in range(self._n - k, self._n)]
-       
+
+
+    def estimar_acuracia(self, bd_teste, pos_classe = 0, pos_texto = 1, 
+                 cabecalho = True, sep = ",", aspas = '"', codificacao='utf-8'):
+        
+        # (0) encerra o processamento caso não exista um modelo treinado
+        if not self._freqs_tokens: return None
+        
+        # (1). abre base de dados usando o pacote 'csv'
+        # tutorial sobre esse pacote: https://realpython.com/python-csv/        
+        with open(bd_teste, encoding = codificacao) as arq_csv:
+            csv_reader = csv.reader(arq_csv, 
+                                    delimiter = sep, 
+                                    quotechar = aspas)
+            
+            # (1.1) pula a linha de cabeçalho, caso exista
+            if cabecalho: csv_reader.__next__()
+            
+            # (2) loop sobre todas as linhas da BD
+            n = 0       # total de documentos do BD de teste
+            acertos = 0 # total de previsões corretas
+            
+            for linha in csv_reader:
+                texto = linha[pos_texto]   # pega o texto
+                classe = linha[pos_classe] # pega a classe
+                
+                n += 1
+                
+                classe_predita = self.classificar(texto)
+                if classe == classe_predita: acertos += 1
+                #print(classe, classe_predita)
+                
+            
+            return acertos / n # retorna a proporção de previsões corretas
+                
+
 
 """
 código de teste
@@ -330,13 +365,31 @@ if __name__ == '__main__':
     # instancia um objeto da classe NaiveBayesMultinomial
     modelo = NaiveBayesMultinomial()
 
-    # importa um dataset para a memória (gera BoW e Y)
-    nome_dataset = "review_filmes.csv"
-    modelo.importar(nome_dataset, pos_classe = 1, pos_texto = 0)
+    # treina o modelo com o dataset "sentiment140"
+    nome_dataset_treino = "sentiment140.csv" # BD de análise de sentimentos
+    modelo.importar(nome_dataset_treino, pos_classe = 0, pos_texto = 1)
+    modelo.treinar()
+    print(f"modelo treinado com o dataset {nome_dataset_treino}!!!")
+    print(f"tamanho do vocabulário: {modelo._m}")
+    print(f"classes do problema: {modelo._classes}")    
+    print()
+    # classifica um novo texto usando o modelo treinado
+    d = "sad news about geopolitics" # para testar o BD de análise de sentimentos
+    classe_predita = modelo.classificar(d, retornar_probs = True)
+    print('-> novo texto:', d)
+    print('-> classe predita ->', classe_predita)
+    print()
+    # testa o modelo treinado com o dataset "person"
+    nome_dataset_teste = "person.csv"
+    acuracia = modelo.estimar_acuracia(nome_dataset_teste, pos_classe = 0, pos_texto = 1)
+    print(f'acurácia no bd de teste {nome_dataset_teste}: {acuracia:.4f}')
 
-    #nome_dataset = "sentiment140.csv" # BD de análise de sentimentos
-    #modelo.importar(nome_dataset, pos_classe = 0, pos_texto = 1)
-    
+    # abaixo outros exemplos... descomente para rodar
+    """
+    # importa um dataset para a memória (gera BoW e Y)
+    #nome_dataset = "review_filmes.csv"
+    #modelo.importar(nome_dataset, pos_classe = 1, pos_texto = 0)
+
     #nome_dataset = "documents.csv" # BD de fake news em português
     #modelo.importar(nome_dataset, pos_classe = 0, pos_texto = 2)
     
@@ -364,3 +417,4 @@ if __name__ == '__main__':
     classe_predita = modelo.classificar(d, retornar_probs = True)
     print('-> novo texto:', d)
     print('-> classe predita ->', classe_predita)
+    """
